@@ -1,0 +1,97 @@
+#include <holoscan/holoscan.hpp>
+#include <chrono>
+#include <thread>
+#include <iostream>
+
+using namespace std::chrono_literals;
+
+// 
+class FastSourceOp : public holoscan::Operator {
+ public:
+  HOLOSCAN_OPERATOR_FORWARD_ARGS(FastSourceOp)
+  FastSourceOp() = default;
+
+  void setup(holoscan::OperatorSpec& spec) override {
+    spec.output<int>("out");
+  }
+
+  void compute(holoscan::InputContext&, holoscan::OutputContext& out,
+               holoscan::ExecutionContext&) override {
+    static int v = 0;
+    out.emit(v, "out");
+auto now = std::chrono::system_clock::now();
+    auto t = std::chrono::system_clock::to_time_t(now);
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                  now.time_since_epoch()) %
+              1000;
+    std::tm local_tm = *std::localtime(&t);
+    std::cout << std::put_time(&local_tm, "%H:%M:%S")
+              << "." << std::setfill('0') << std::setw(3) << ms.count()
+              << "  Op1 emits " << v << std::endl;
+    ++v;
+  
+  }
+};
+
+//
+class SlowConsumerOp : public holoscan::Operator {
+ public:
+  HOLOSCAN_OPERATOR_FORWARD_ARGS(SlowConsumerOp)
+  SlowConsumerOp() = default;
+
+  void setup(holoscan::OperatorSpec& spec) override {
+    spec.input<int>("in")
+        .queue_size(3)
+        .queue_policy(holoscan::IOSpec::QueuePolicy::kPop);
+  }
+
+  void compute(holoscan::InputContext& in, holoscan::OutputContext&,
+               holoscan::ExecutionContext&) override {
+    auto msg = in.receive<int>("in");
+    if (msg) {
+    auto now = std::chrono::system_clock::now();
+      auto t = std::chrono::system_clock::to_time_t(now);
+      auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now.time_since_epoch()) %
+                1000;
+      std::tm local_tm = *std::localtime(&t);
+      std::cout << std::put_time(&local_tm, "%H:%M:%S")
+                << "." << std::setfill('0') << std::setw(3) << ms.count()
+                << "   Op2 gets " << msg.value() << std::endl;
+    }
+
+  }
+};
+
+//
+class KPopSingleFragmentApp : public holoscan::Application {
+ public:
+  void compose() override {
+    using namespace holoscan;
+
+    auto src_period  = make_condition<PeriodicCondition>("src_period", 1.0);
+    auto src_count   = make_condition<CountCondition>("src_count", 15);
+    auto sink_period = make_condition<PeriodicCondition>("sink_period", 10000.0);
+
+    auto src  = make_operator<FastSourceOp>("op1", src_period, src_count);
+    auto sink = make_operator<SlowConsumerOp>("op2", sink_period);
+
+    add_flow(src, sink, {{"out", "in"}});
+  }
+};
+
+// 
+int main(int, char**) {
+  auto app = holoscan::make_application<KPopSingleFragmentApp>();
+
+  // 创建多线程调度器
+  auto scheduler = app->make_scheduler<holoscan::MultiThreadScheduler>(
+      "mysched",
+      holoscan::Arg("worker_thread_number", static_cast<int64_t>(4)),
+      holoscan::Arg("stop_on_deadlock", true)
+  );
+
+  app->scheduler(scheduler);
+  app->run();
+  return 0;
+}
