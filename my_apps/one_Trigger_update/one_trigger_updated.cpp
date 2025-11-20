@@ -4,7 +4,8 @@
 
 namespace holoscan::conditions {
 
-// 
+// add condition
+// op1 fire every 1 cycle, op2 fires every 3 cycles
 class NativeMessageAvailableCondition : public Condition {
  public:
   HOLOSCAN_CONDITION_FORWARD_ARGS(NativeMessageAvailableCondition)
