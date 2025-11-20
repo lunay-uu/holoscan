@@ -1,0 +1,3 @@
+/home/lunay/Desktop/holoscan_ws/my_apps/two_out/build/CMakeFiles/two_out.dir
+/home/lunay/Desktop/holoscan_ws/my_apps/two_out/build/CMakeFiles/edit_cache.dir
+/home/lunay/Desktop/holoscan_ws/my_apps/two_out/build/CMakeFiles/rebuild_cache.dir
