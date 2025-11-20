@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-//
+//op1 op2 fire every cycle
 class Op1 : public holoscan::Operator {
  public:
   HOLOSCAN_OPERATOR_FORWARD_ARGS(Op1)
