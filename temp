@@ -1,1 +1,242 @@
 
+#include <memory>
+#include <iostream>
+#include <vector>
+#include "holoscan/holoscan.hpp"
+
+using namespace std;
+using namespace holoscan;
+
+/* =========================================================
+ * 全局 buffer 计数（每条 edge 一个）
+ * ========================================================= */
+namespace holoscan::conditions {
+size_t buf_op1_op2 = 0;
+size_t buf_op1_op3 = 0;
+size_t buf_op2_op3 = 0;
+size_t buf_op3_op4 = 0;
+}
+
+/* =========================================================
+ * JoinBufferCondition（Op3 专用）
+ * ========================================================= */
+namespace holoscan::conditions {
+
+class JoinBufferCondition : public Condition {
+ public:
+  HOLOSCAN_CONDITION_FORWARD_ARGS(JoinBufferCondition)
+
+  void setup(ComponentSpec& spec) override {
+    spec.param(rx1_, "rx1", "Receiver1", "");
+    spec.param(rx2_, "rx2", "Receiver2", "");
+    spec.param(min1_, "min1", "Min tokens rx1", "", 1UL);
+    spec.param(min2_, "min2", "Min tokens rx2", "", 1UL);
+  }
+
+  void check(int64_t, SchedulingStatusType* type, int64_t*) const override {
+    auto r1 = rx1_.get();
+    auto r2 = rx2_.get();
+    if (!r1 || !r2) {
+      *type = SchedulingStatusType::kWait;
+      return;
+    }
+
+    size_t t1 = r1->size() + r1->back_size() + buf_op1_op3;
+    size_t t2 = r2->size() + r2->back_size() + buf_op2_op3;
+
+    *type = (t1 >= min1_.get() && t2 >= min2_.get())
+              ? SchedulingStatusType::kReady
+              : SchedulingStatusType::kWait;
+  }
+
+ private:
+  Parameter<std::shared_ptr<Receiver>> rx1_;
+  Parameter<std::shared_ptr<Receiver>> rx2_;
+  Parameter<uint64_t> min1_;
+  Parameter<uint64_t> min2_;
+};
+
+}  // namespace holoscan::conditions
+
+/* =========================================================
+ * Op1：双输出 Source
+ * out1 → Op2 (produce 2)
+ * out2 → Op3 (produce 1)
+ * ========================================================= */
+class Op1 : public Operator {
+ public:
+  HOLOSCAN_OPERATOR_FORWARD_ARGS(Op1)
+
+  void setup(OperatorSpec& spec) override {
+    spec.output<vector<int>>("out1");
+    spec.output<vector<int>>("out2");
+  }
+
+  void compute(InputContext&, OutputContext& out, ExecutionContext&) override {
+    static int counter = 0;
+
+    vector<int> b1 = {++counter, ++counter};  // rate 2
+    vector<int> b2 = {++counter};             // rate 1
+
+    out.emit(b1, "out1");
+    out.emit(b2, "out2");
+
+    holoscan::conditions::buf_op1_op2 += 2;
+    holoscan::conditions::buf_op1_op3 += 1;
+
+    cout << "Op1 emits: out1(2), out2(1)\n";
+  }
+};
+
+/* =========================================================
+ * Op2：单入单出
+ * consume 3 → produce 2
+ * ========================================================= */
+class Op2 : public Operator {
+ public:
+  HOLOSCAN_OPERATOR_FORWARD_ARGS(Op2)
+
+  void setup(OperatorSpec& spec) override {
+    spec.input<vector<int>>("in").queue_size(64);
+    spec.output<vector<int>>("out");
+  }
+
+  void compute(InputContext& in, OutputContext& out, ExecutionContext&) override {
+    static vector<int> buffer;
+
+    auto b = in.receive<vector<int>>("in");
+    while (b) {
+      buffer.insert(buffer.end(), b->begin(), b->end());
+      b = in.receive<vector<int>>("in");
+    }
+
+    if (buffer.size() >= 3) {
+      vector<int> out_batch(buffer.begin(), buffer.begin() + 2);
+      buffer.erase(buffer.begin(), buffer.begin() + 3);
+
+      holoscan::conditions::buf_op1_op2 -= 3;
+      holoscan::conditions::buf_op2_op3 += 2;
+
+      out.emit(out_batch, "out");
+      cout << "Op2 fires (consume 3 → produce 2)\n";
+    }
+  }
+};
+
+/* =========================================================
+ * Op3：Join（双输入单输出）
+ * in2: consume 2
+ * in3: consume 3
+ * produce 3
+ * ========================================================= */
+class Op3 : public Operator {
+ public:
+  HOLOSCAN_OPERATOR_FORWARD_ARGS(Op3)
+
+  void setup(OperatorSpec& spec) override {
+    spec.input<vector<int>>("in2").queue_size(64);
+    spec.input<vector<int>>("in3").queue_size(64);
+    spec.output<vector<int>>("out");
+  }
+
+  void compute(InputContext& in, OutputContext& out, ExecutionContext&) override {
+    static vector<int> buf2, buf3;
+
+    auto b2 = in.receive<vector<int>>("in2");
+    while (b2) {
+      buf2.insert(buf2.end(), b2->begin(), b2->end());
+      b2 = in.receive<vector<int>>("in2");
+    }
+
+    auto b3 = in.receive<vector<int>>("in3");
+    while (b3) {
+      buf3.insert(buf3.end(), b3->begin(), b3->end());
+      b3 = in.receive<vector<int>>("in3");
+    }
+
+    if (buf2.size() >= 2 && buf3.size() >= 3) {
+      vector<int> out_batch;
+      out_batch.insert(out_batch.end(), buf2.begin(), buf2.begin() + 2);
+      out_batch.insert(out_batch.end(), buf3.begin(), buf3.begin() + 1);
+
+      buf2.erase(buf2.begin(), buf2.begin() + 2);
+      buf3.erase(buf3.begin(), buf3.begin() + 3);
+
+      holoscan::conditions::buf_op1_op3 -= 2;
+      holoscan::conditions::buf_op2_op3 -= 3;
+      holoscan::conditions::buf_op3_op4 += 3;
+
+      out.emit(out_batch, "out");
+      cout << "Op3 fires (join)\n";
+    }
+  }
+};
+
+/* =========================================================
+ * Op4：Sink
+ * consume 4
+ * ========================================================= */
+class Op4 : public Operator {
+ public:
+  HOLOSCAN_OPERATOR_FORWARD_ARGS(Op4)
+
+  void setup(OperatorSpec& spec) override {
+    spec.input<vector<int>>("in").queue_size(64);
+  }
+
+  void compute(InputContext& in, OutputContext&, ExecutionContext&) override {
+    static vector<int> buffer;
+
+    auto b = in.receive<vector<int>>("in");
+    while (b) {
+      buffer.insert(buffer.end(), b->begin(), b->end());
+      b = in.receive<vector<int>>("in");
+    }
+
+    if (buffer.size() >= 4) {
+      cout << "Op4 consumes:";
+      for (int i = 0; i < 4; ++i) cout << " " << buffer[i];
+      cout << endl;
+
+      buffer.erase(buffer.begin(), buffer.begin() + 4);
+      holoscan::conditions::buf_op3_op4 -= 4;
+    }
+  }
+};
+
+/* =========================================================
+ * Application
+ * ========================================================= */
+class SDFCaseApp : public Application {
+ public:
+  void compose() override {
+    auto op1 = make_operator<Op1>("op1",
+        make_condition<CountCondition>("count", 20));
+
+    auto op2 = make_operator<Op2>("op2");
+
+    auto join_cond = make_condition<conditions::JoinBufferCondition>(
+        "join_cond",
+        Arg("rx1", "in2"),
+        Arg("rx2", "in3"),
+        Arg("min1", static_cast<uint64_t>(2)),
+        Arg("min2", static_cast<uint64_t>(3)));
+
+    auto op3 = make_operator<Op3>("op3", join_cond);
+    auto op4 = make_operator<Op4>("op4");
+
+    add_flow(op1, op2, {{"out1", "in"}});
+    add_flow(op1, op3, {{"out2", "in2"}});
+    add_flow(op2, op3, {{"out",  "in3"}});
+    add_flow(op3, op4, {{"out",  "in"}});
+  }
+};
+
+/* =========================================================
+ * Main
+ * ========================================================= */
+int main() {
+  auto app = make_application<SDFCaseApp>();
+  app->run();
+  return 0;
+}
