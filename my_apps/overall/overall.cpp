@@ -411,16 +411,16 @@ class TokenSDFApp : public holoscan::Application {
     auto cond3_in2 = make_condition<conditions::BufferAwareCondition>(
       "cond3_in2",
       Arg("receiver", "in2"),
-      Arg("edge_id", 2),                 // 不再使用，你的逻辑直接检查 tok_op1_op3
-      Arg("min_tokens", uint64_t(2))     // b2 = 2
+      Arg("edge_id", 2),                 
+      Arg("min_tokens", uint64_t(2))     
     );
 
     // in3 来自 op2 → op3
     auto cond3_in3 = make_condition<conditions::BufferAwareCondition>(
       "cond3_in3",
       Arg("receiver", "in3"),
-      Arg("edge_id", 3),                 // 不再使用，你的逻辑直接检查 tok_op2_op3
-      Arg("min_tokens", uint64_t(3))     // b3 = 3
+      Arg("edge_id", 3),                
+      Arg("min_tokens", uint64_t(3))    
     );
 
     auto op3 = make_operator<Op3>(
