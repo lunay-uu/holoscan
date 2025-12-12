@@ -179,17 +179,17 @@ class Op1 : public holoscan::Operator {
 
   void compute(holoscan::InputContext&, holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
-    static int counter = 0;
-
+    static int counter1 = 0;
+    static int counter2 = 0;
     std::vector<int> b1;
     b1.reserve(a1_.get());
     for (int i = 0; i < a1_.get(); ++i)
-      b1.push_back(++counter);
+      b1.push_back(++counter1);
 
     std::vector<int> b2;
     b2.reserve(a2_.get());
     for (int i = 0; i < a2_.get(); ++i)
-      b2.push_back(++counter);
+      b2.push_back(++counter2);
 
     out.emit(b1, "out1");
     out.emit(b2, "out2");
@@ -227,7 +227,7 @@ class Op2 : public holoscan::Operator {
   void compute(holoscan::InputContext& in, holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
     static std::vector<int> buffer;
-
+ static int counter = 0;
     auto msg = in.receive<std::vector<int>>("in");
     while (msg) {
       buffer.insert(buffer.end(), msg->begin(), msg->end());
@@ -244,7 +244,7 @@ class Op2 : public holoscan::Operator {
       std::vector<int> produced;
       produced.reserve(a3_.get());
       for (int i = 0; i < a3_.get(); ++i)
-        produced.push_back(i);
+        produced.push_back(++counter);
 
       out.emit(produced, "out");
       holoscan::conditions::tok_op2_op3 += produced.size();
@@ -279,7 +279,7 @@ class Op3 : public holoscan::Operator {
   void compute(holoscan::InputContext& in, holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
     static std::vector<int> buf2, buf3;
-
+    static int counter = 0;
     auto m2 = in.receive<std::vector<int>>("in2");
     while (m2) {
       buf2.insert(buf2.end(), m2->begin(), m2->end());
@@ -309,7 +309,7 @@ std::cout << std::endl;
       std::vector<int> produced;
       produced.reserve(a4_.get());
       for (int i = 0; i < a4_.get(); ++i)
-        produced.push_back(i);
+        produced.push_back(++counter);
 
       out.emit(produced, "out");
       holoscan::conditions::tok_op3_op4 += produced.size();
