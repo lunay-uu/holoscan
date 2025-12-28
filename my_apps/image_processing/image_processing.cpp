@@ -1,4 +1,4 @@
-#include <holoscan/holoscan.hpp>
+#include <holoscan/holoscan.hpp>//对于已经存在的数据，不需要condition来等待，直接整存整取给定的token
 #include <fstream>
 #include <sstream>
 #include <vector>
