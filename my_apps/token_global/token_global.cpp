@@ -4,7 +4,7 @@
 
 using namespace std;
 
-// ========= 全局 Token 计数（非原子版）=========
+// 
 namespace holoscan::conditions {
 size_t g_buffered_tokens = 0;
 }
@@ -113,7 +113,7 @@ class Op1 : public holoscan::Operator {
 };
 
 
-// ========= Op2：每次消耗 y 个 token =========
+// 
 class Op2 : public holoscan::Operator {
  public:
   HOLOSCAN_OPERATOR_FORWARD_ARGS(Op2)
@@ -149,7 +149,7 @@ class Op2 : public holoscan::Operator {
 };
 
 
-// ========= Application =========
+// 
 class TokenSDFApp : public holoscan::Application {
  public:
   void compose() override {
@@ -174,7 +174,7 @@ auto cond = make_condition<conditions::BufferAwareCondition>(
 };
 
 
-// ========= Main =========
+
 int main() {
   auto app = holoscan::make_application<TokenSDFApp>();
   app->run();
