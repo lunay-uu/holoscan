@@ -153,7 +153,7 @@ class TokenApp : public Application {
     auto op1 = make_operator<Op1>("op1", make_condition<CountCondition>("count_cond", 12));
 
     auto cond1 = make_condition<NativeMessageAvailableCondition>(
-        "cond_in1", Arg("receiver", "in1"), Arg("min_size", static_cast<uint64_t>(4)));
+        "cond_in1", Arg("receiver", "in1"), Arg("min_size", static_cast<uint64_t>(2)));
     auto cond2 = make_condition<NativeMessageAvailableCondition>(
         "cond_in2", Arg("receiver", "in2"), Arg("min_size", static_cast<uint64_t>(3)));
 
