@@ -15,7 +15,9 @@ using holoscan::InputContext;
 using holoscan::OutputContext;
 using holoscan::ExecutionContext;
 
-// ---------- helpers ----------
+static int worker_num=8;
+static auto sys_begin;
+static auto sys_end;
 inline int cpu_id() {
   return sched_getcpu();
 }
@@ -26,16 +28,19 @@ inline pid_t thread_id() {
 
 using steady = std::chrono::steady_clock;
 using ns     = std::chrono::nanoseconds;
+void busy_loop(uint64_t iters) {
+    volatile uint64_t x = 0;
+    for (uint64_t i = 0; i < iters; ++i) {
+      x += i;
+    }
+  }
 
-// =======================================================
-// op0 : fan-out producer
-// =======================================================
 class Op0 : public Operator {
  public:
   HOLOSCAN_OPERATOR_FORWARD_ARGS(Op0)
 Op0() = default;
   void setup(OperatorSpec& spec) override {
-    for (int i = 1; i <= 8; ++i) {
+    for (int i = 1; i <= worker_num; ++i) {
       spec.output<int>(("out" + std::to_string(i)).c_str());
     }
   }
@@ -43,8 +48,15 @@ Op0() = default;
   void compute(InputContext&,
                OutputContext& out,
                ExecutionContext&) override {
+        auto t_start = steady::now();
+     sys_begin =
+      std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
 
-    for (int i = 1; i <= 8; ++i) {
+    HOLOSCAN_LOG_INFO(
+      "[START] op={} cpu={} tid={} ts(ns)={}",
+      name(), cpu_id(), thread_id(), sys_begin
+    );
+    for (int i = 1; i <= worker_num; ++i) {
       std::string port = "out" + std::to_string(i);
       out.emit(i, port.c_str());
     }
@@ -60,23 +72,22 @@ Op0() = default;
   }
 };
 
-// =======================================================
-// op1–op8 : parallel workers
-// =======================================================
 class WorkerOp : public Operator {
  public:
   HOLOSCAN_OPERATOR_FORWARD_ARGS(WorkerOp)
-WorkerOp() = default;
+  WorkerOp() = default;
+
+
   void setup(OperatorSpec& spec) override {
     spec.input<int>("in");
     spec.output<int>("out");
+
   }
 
   void compute(InputContext& in,
                OutputContext& out,
                ExecutionContext&) override {
-
-    auto t_start = steady::now();
+        auto t_start = steady::now();
     auto start_ns =
       std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
 
@@ -84,12 +95,8 @@ WorkerOp() = default;
       "[START] op={} cpu={} tid={} ts(ns)={}",
       name(), cpu_id(), thread_id(), start_ns
     );
-
     auto v = in.receive<int>("in").value();
-
-    // ---- artificial workload: 100 ms ----
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
+    busy_loop(2e8);
     out.emit(v, "out");
 
     auto t_end = steady::now();
@@ -104,15 +111,14 @@ WorkerOp() = default;
   }
 };
 
-// =======================================================
-// op9 : fan-in sink
-// =======================================================
+
+
 class Op9 : public Operator {
  public:
   HOLOSCAN_OPERATOR_FORWARD_ARGS(Op9)
 Op9() = default;
   void setup(OperatorSpec& spec) override {
-    for (int i = 1; i <= 8; ++i) {
+    for (int i = 1; i <= worker_num; ++i) {
       spec.input<int>(("in" + std::to_string(i)).c_str());
     }
   }
@@ -130,16 +136,22 @@ Op9() = default;
       name(), cpu_id(), thread_id(), ts
     );
 
-    for (int i = 1; i <= 8; ++i) {
+    for (int i = 1; i <= worker_num; ++i) {
       std::string port = "in" + std::to_string(i);
       in.receive<int>(port.c_str());
     }
+    auto t_end = steady::now();
+    auto sys_end =
+      std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
+
+    HOLOSCAN_LOG_INFO(
+      "[START] op={} cpu={} tid={} ts(ns)={} duration(ns)={}",
+      name(), cpu_id(), thread_id(), sys_end, sys_end-sys_begin
+    );
   }
 };
 
-// =======================================================
-// application
-// =======================================================
+
 class FanOutFanInApp : public holoscan::Application {
  public:
   void compose() override {
@@ -151,7 +163,7 @@ class FanOutFanInApp : public holoscan::Application {
     );
 
     std::vector<std::shared_ptr<Operator>> workers;
-    for (int i = 1; i <= 8; ++i) {
+    for (int i = 1; i <= worker_num; ++i) {
       workers.push_back(
         make_operator<WorkerOp>("op" + std::to_string(i))
       );
@@ -159,7 +171,7 @@ class FanOutFanInApp : public holoscan::Application {
 
     auto op9 = make_operator<Op9>("op9");
 
-    for (int i = 1; i <= 8; ++i) {
+    for (int i = 1; i <= worker_num; ++i) {
       add_flow(op0, workers[i - 1],
         {{("out" + std::to_string(i)), "in"}});
       add_flow(workers[i - 1], op9,
@@ -168,9 +180,7 @@ class FanOutFanInApp : public holoscan::Application {
   }
 };
 
-// =======================================================
-// main
-// =======================================================
+
 int main() {
   auto app = holoscan::make_application<FanOutFanInApp>();
 
