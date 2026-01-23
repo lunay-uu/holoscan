@@ -187,13 +187,10 @@ class ControlOp : public holoscan::Operator {
     if (state_.empty()) {
       state_ = {255.0, 255.0, 255.0};
     }
-    // === nextStateFunc ===
-    // 新的 diff = hmax - hmin
+
     double diff = hmax - hmin;
     state_.insert(state_.begin(), diff);
     if (state_.size() > 3) state_.pop_back();
-
-    // === outDecodeFunc (3 samples) ===
     double avg = std::accumulate(state_.begin(), state_.end(), 0.0) / state_.size();
     Control c = (avg < 128.0) ? Control::Enable : Control::Disable;
 
