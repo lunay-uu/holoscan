@@ -80,7 +80,7 @@ class Op1 : public Operator {
   }
 };
 
-// ============ Op2 ============
+// 
 class Op2 : public Operator {
  public:
   HOLOSCAN_OPERATOR_FORWARD_ARGS(Op2)
@@ -113,7 +113,7 @@ class Op2 : public Operator {
   Parameter<int> x_;
 };
 
-// ============ Op3 ============
+// 
 class Op3 : public Operator {
  public:
   HOLOSCAN_OPERATOR_FORWARD_ARGS(Op3)
@@ -176,7 +176,7 @@ class TokenApp : public Application {
 };
 
 
-// ============ main ============
+//
 int main() {
   auto app = make_application<TokenApp>();
   app->run();
