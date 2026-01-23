@@ -53,7 +53,7 @@ class NativeMessageAvailableCondition : public Condition {
   mutable int64_t last_state_change_ = 0;
 };
 
-// ============ Op1 ============
+
 class Op1 : public Operator {
  public:
   HOLOSCAN_OPERATOR_FORWARD_ARGS(Op1)
@@ -78,7 +78,7 @@ class Op1 : public Operator {
   }
 };
 
-// ============ Op2 ============
+
 class Op2 : public Operator {
  public:
   HOLOSCAN_OPERATOR_FORWARD_ARGS(Op2)
@@ -111,7 +111,7 @@ class Op2 : public Operator {
   Parameter<int> x_;
 };
 
-// ============ Op3 ============
+
 class Op3 : public Operator {
  public:
   HOLOSCAN_OPERATOR_FORWARD_ARGS(Op3)
@@ -144,7 +144,7 @@ class Op3 : public Operator {
   Parameter<int> y_;
 };
 
-// ============ App ============
+
 class TokenApp : public Application {
  public:
   void compose() override {
@@ -165,7 +165,7 @@ class TokenApp : public Application {
   }
 };
 
-// ============ main ============
+
 int main() {
   auto app = make_application<TokenApp>();
   app->run();
