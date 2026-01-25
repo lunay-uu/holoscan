@@ -194,7 +194,7 @@ int main() {
 app->scheduler(
   app->make_scheduler<holoscan::MultiThreadScheduler>(
     "mts",
-    holoscan::Arg("worker_thread_number", int64_t(8))  )
+    holoscan::Arg("worker_thread_number", int64_t(worker_num))  )
 );
 
 
@@ -202,7 +202,7 @@ app->scheduler(
  // app->scheduler(
   //  app->make_scheduler<holoscan::EventBasedScheduler>(
  //     "ebs",
-    //  holoscan::Arg("worker_thread_number", int64_t(8))
+    //  holoscan::Arg("worker_thread_number", int64_t(worker_num))
    // )
  // );
 
