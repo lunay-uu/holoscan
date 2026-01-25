@@ -15,9 +15,9 @@ using holoscan::InputContext;
 using holoscan::OutputContext;
 using holoscan::ExecutionContext;
 
-static int worker_num=8;
-static auto sys_begin;
-static auto sys_end;
+static int worker_num=16;
+static int64_t sys_begin = 0;
+static int64_t sys_end   = 0;
 inline int cpu_id() {
   return sched_getcpu();
 }
@@ -51,9 +51,8 @@ Op0() = default;
         auto t_start = steady::now();
      sys_begin =
       std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
-
     HOLOSCAN_LOG_INFO(
-      "[START] op={} cpu={} tid={} ts(ns)={}",
+      "[Sys START] op={} cpu={} tid={} ts(ns)={}",
       name(), cpu_id(), thread_id(), sys_begin
     );
     for (int i = 1; i <= worker_num; ++i) {
@@ -141,11 +140,11 @@ Op9() = default;
       in.receive<int>(port.c_str());
     }
     auto t_end = steady::now();
-    auto sys_end =
+     sys_end =
       std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
 
     HOLOSCAN_LOG_INFO(
-      "[START] op={} cpu={} tid={} ts(ns)={} duration(ns)={}",
+      "[Sys end] op={} cpu={} tid={} ts(ns)={} sys duration(ns)={}",
       name(), cpu_id(), thread_id(), sys_end, sys_end-sys_begin
     );
   }
@@ -169,12 +168,12 @@ class FanOutFanInApp : public holoscan::Application {
       );
     }
 
-    auto op9 = make_operator<Op9>("op9");
+    auto opsink = make_operator<Op9>("opsink");
 
     for (int i = 1; i <= worker_num; ++i) {
       add_flow(op0, workers[i - 1],
         {{("out" + std::to_string(i)), "in"}});
-      add_flow(workers[i - 1], op9,
+      add_flow(workers[i - 1], opsink,
         {{"out", ("in" + std::to_string(i))}});
     }
   }
