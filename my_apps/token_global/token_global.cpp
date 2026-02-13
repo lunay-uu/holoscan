@@ -64,12 +64,6 @@ if (holoscan::conditions::g_buffered_tokens < min_tokens_.get())
     const size_t queue_tokens = recv->back_size() + recv->size();
     const size_t total_tokens = queue_tokens + holoscan::conditions::g_buffered_tokens;
 
-  //  std::cout << "[COND] queue=" << queue_tokens
-   //           << " buffer=" << holoscan::conditions::g_buffered_tokens
- //             << " total=" << total_tokens
-              //<< (total_tokens >= min_tokens_.get() ? " → READY" : " → WAIT")
-            //  << std::endl;
-
     return total_tokens >= min_tokens_.get();
   }
 
@@ -89,7 +83,7 @@ class Op1 : public holoscan::Operator {
 
   void setup(holoscan::OperatorSpec& spec) override {
     spec.output<std::vector<int>>("out");
-    spec.param(x_, "x", "Tokens per execution", "Number of tokens emitted per fire", 2);
+    spec.param(x_, "x", "Tokens per execution", "Produced Tokens per execution", 2);
   }
 
   void compute(holoscan::InputContext&, holoscan::OutputContext& out,
@@ -121,7 +115,7 @@ class Op2 : public holoscan::Operator {
 
   void setup(holoscan::OperatorSpec& spec) override {
     spec.input<std::vector<int>>("in").queue_size(64);
-    spec.param(y_, "y", "Tokens per execution", "Tokens to consume per fire", 3);
+    spec.param(y_, "y", "Tokens per execution", "Consumed Tokens per execution", 3);
   }
 
   void compute(holoscan::InputContext& in, holoscan::OutputContext&, holoscan::ExecutionContext&) override {
@@ -160,7 +154,6 @@ class TokenSDFApp : public holoscan::Application {
         make_condition<CountCondition>("count_cond", 9),
         Arg("x", 2));
 
-//    extern size_t g_buffered_tokens;  // 声明
 
 auto cond = make_condition<conditions::BufferAwareCondition>(
     "buf_cond",
