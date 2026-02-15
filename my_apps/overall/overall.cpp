@@ -132,8 +132,8 @@ class Op1 : public holoscan::Operator {
     out.emit(b1, "out1");
     out.emit(b2, "out2");
 
-    holoscan::conditions::tok_op1_op2 += b1.size();
-    holoscan::conditions::tok_op1_op3 += b2.size();
+    holoscan::conditions::tok_op1_op2 += a1_.get();
+    holoscan::conditions::tok_op1_op3 += a2_.get();
 //std::cout << holoscan::conditions::tok_op1_op3 << std::endl;
     std::cout << "[Op1] produces [out1]:";
     for (auto v : b1) std::cout << " " << v;
