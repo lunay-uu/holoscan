@@ -105,7 +105,6 @@ class Op1 : public holoscan::Operator {
   void setup(holoscan::OperatorSpec& spec) override {
     spec.output<std::vector<int>>("out1");
     spec.output<std::vector<int>>("out2");
-
     spec.param(a1_, "a1", "Tokens out1", "Tokens produced on out1 per fire", 2);
     spec.param(a2_, "a2", "Tokens out2", "Tokens produced on out2 per fire", 1);
   }
@@ -113,7 +112,6 @@ class Op1 : public holoscan::Operator {
   void compute(holoscan::InputContext&, holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
     static int counter1 = 0;
-
     static int counter2 = 0;
   int cpu = sched_getcpu();
   pid_t tid = syscall(SYS_gettid);
