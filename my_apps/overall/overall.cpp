@@ -76,10 +76,9 @@ class BufferAwareCondition : public Condition {
     switch (edge_id_.get()) {
 
       case 1: tokens = tok_op1_op2; break;
-
       case 2: tokens = tok_op1_op3; break;   
       case 3: tokens = tok_op2_op3; break;   
-     case 4: tokens = tok_op3_op4; break;
+      case 4: tokens = tok_op3_op4; break;
       default: tokens = 0;
     }
 
@@ -95,90 +94,7 @@ class BufferAwareCondition : public Condition {
 };
 
 }  
-namespace holoscan::conditions {
 
-class JoinCondition : public Condition {
- public:
-  HOLOSCAN_CONDITION_FORWARD_ARGS(JoinCondition)
-  JoinCondition() = default;
-
-  void initialize() override {
-    Condition::initialize();
-    current_state_ = SchedulingStatusType::kWait;
-    last_state_change_ = 0;
-  }
-
-  void setup(ComponentSpec& spec) override {
-    spec.param(receiver1_,
-               "receiver1",
-               "Receiver 1",
-               "First join input");
-    spec.param(receiver2_,
-               "receiver2",
-               "Receiver 2",
-               "Second join input");
-    spec.param(min1_,
-               "min1",
-               "Consume rate b1",
-               "Required tokens on edge 1",
-               static_cast<uint64_t>(1));
-    spec.param(min2_,
-               "min2",
-               "Consume rate b2",
-               "Required tokens on edge 2",
-               static_cast<uint64_t>(1));
-  }
-
-  void check(int64_t, SchedulingStatusType* type,
-             int64_t* target_timestamp) const override {
-    *type = current_state_;
-    *target_timestamp = last_state_change_;
-  }
-
-  void on_execute(int64_t timestamp) override {
-    update_state(timestamp);
-  }
-
-  void update_state(int64_t timestamp) override {
-    const bool ready = check_ready();
-    if (ready && current_state_ != SchedulingStatusType::kReady) {
-      current_state_ = SchedulingStatusType::kReady;
-      last_state_change_ = timestamp;
-    } else if (!ready && current_state_ != SchedulingStatusType::kWait) {
-      current_state_ = SchedulingStatusType::kWait;
-      last_state_change_ = timestamp;
-    }
-  }
-
- private:
-  bool check_ready() const {
-        size_t q2 = receiver1_.get()->back_size();
-    size_t q3 = receiver2_.get()->back_size();
-
-    bool in2_ready = (q2 >= min1_.get()) && (tok_op1_op3 >= min1_.get());
-    bool in3_ready = (q3 >= min2_.get()) && (tok_op2_op3 >= min2_.get());
-    std::cout << "[JoinCondition] check_ready() → "
-              << "tok_op1_op3=" << tok_op1_op3
-              << " (need " << min1_.get() << "),  "
-              << "tok_op2_op3=" << tok_op2_op3
-              << " (need " << min2_.get() << ")  "
-              << " => READY=" << (in2_ready && in3_ready)
-              << std::endl;
-
-
-    return in2_ready && in3_ready;
-  }
-
-  Parameter<std::shared_ptr<holoscan::Receiver>> receiver1_;
-  Parameter<std::shared_ptr<holoscan::Receiver>> receiver2_;
-  Parameter<uint64_t> min1_;
-  Parameter<uint64_t> min2_;
-
-  mutable SchedulingStatusType current_state_ = SchedulingStatusType::kWait;
-  mutable int64_t last_state_change_ = 0;
-};
-
-}  
 
 
 class Op1 : public holoscan::Operator {
@@ -214,17 +130,17 @@ class Op1 : public holoscan::Operator {
     for (int i = 0; i < a2_.get(); ++i)
       b2.push_back(++counter2);
 
-  busy_loop(5e7);
+   busy_loop(5e7);
     out.emit(b1, "out1");
     out.emit(b2, "out2");
 
     holoscan::conditions::tok_op1_op2 += b1.size();
     holoscan::conditions::tok_op1_op3 += b2.size();
 //std::cout << holoscan::conditions::tok_op1_op3 << std::endl;
-    std::cout << "Op1 produces out1:";
+    std::cout << "[Op1] produces [out1]:";
     for (auto v : b1) std::cout << " " << v;
 //     std::cout <<  std::endl;
-      std::cout << "Op1 produces out2:";
+      std::cout << "[Op1] produces [out2]:";
     for (auto v : b2) std::cout << " " << v;
      std::cout <<  std::endl;
   }
@@ -264,7 +180,7 @@ class Op2 : public holoscan::Operator {
     }
 
     if (buffer.size() >= static_cast<size_t>(b1_.get())) {
-       std::cout << "Op2 consumes:";
+       std::cout << "[Op2] consumes:";
       for (int i = 0; i < b1_.get(); ++i) std::cout << " " << buffer[i];
   //    std::cout << std::endl;
       buffer.erase(buffer.begin(), buffer.begin() + b1_.get());
@@ -281,7 +197,7 @@ class Op2 : public holoscan::Operator {
       out.emit(produced, "out");    
   holoscan::conditions::tok_op2_op3 += produced.size();
 //std::cout << holoscan::conditions::tok_op2_op3 << std::endl;
-          std::cout << "Op2 produces :";
+          std::cout << "[Op2] produces :";
     for (auto v : produced) std::cout << " " << v;
      std::cout <<  std::endl;
 
@@ -335,10 +251,10 @@ class Op3 : public holoscan::Operator {
 
     if (buf2.size() >= static_cast<size_t>(b2_.get()) &&
         buf3.size() >= static_cast<size_t>(b3_.get())) {
-std::cout << "Op3 consumes in1:";
+std::cout << "[Op3] consumes [in1]:";
 for (int i = 0; i <  b2_.get(); ++i) std::cout << " " << buf2[i];
 //std::cout << std::endl;
-std::cout << "Op3 consumes in2:";
+std::cout << "[Op3] consumes [in2]:";
 for (int i = 0; i <  b3_.get(); ++i) std::cout << " " << buf3[i];
 //std::cout << std::endl;
       buf2.erase(buf2.begin(), buf2.begin() + b2_.get());
@@ -355,7 +271,7 @@ for (int i = 0; i <  b3_.get(); ++i) std::cout << " " << buf3[i];
       out.emit(produced, "out");
       holoscan::conditions::tok_op3_op4 += produced.size();
 
-              std::cout << "Op3 produces :";
+              std::cout << "[Op3] produces :";
     for (auto v : produced) std::cout << " " << v;
      std::cout <<  std::endl;
  busy_loop(5e7);
@@ -394,7 +310,7 @@ class Op4 : public holoscan::Operator {
     }
 
     if (buffer.size() >= static_cast<size_t>(b4_.get())) {
-std::cout << "Op4 consumes in3:";
+std::cout << "[Op4] consumes:";
 for (int i = 0; i <  b4_.get(); ++i) std::cout << " " << buffer[i];
 std::cout << std::endl;
       buffer.erase(buffer.begin(), buffer.begin() + b4_.get());
@@ -435,14 +351,6 @@ class TokenSDFApp : public holoscan::Application {
       Arg("a3", 3)    // produce 2
     );
 
-  
-    auto cond3 = make_condition<conditions::JoinCondition>(
-      "cond3",
-      Arg("receiver1", "in2"),
-      Arg("receiver2", "in3"),
-      Arg("min1", uint64_t(2)),   // Op1 → Op3 consume
-      Arg("min2", uint64_t(4))    // Op2 → Op3 consume
-    );
     auto cond3_in2 = make_condition<conditions::BufferAwareCondition>(
       "cond3_in2",
       Arg("receiver", "in2"),
@@ -466,13 +374,6 @@ class TokenSDFApp : public holoscan::Application {
       Arg("b3", 4),
       Arg("a4", 1)
     );
-  //  auto op3 = make_operator<Op3>(
-    //  "op3",
-   //   cond3,
-    //  Arg("b2", 2),   // consume from in2
-  //    Arg("b3", 3),   // consume from in3
-   //   Arg("a4", 3)    // produce
- //   );
 
    
     auto cond4 = make_condition<conditions::BufferAwareCondition>(
