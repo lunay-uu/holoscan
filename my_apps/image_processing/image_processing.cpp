@@ -485,7 +485,7 @@ int main(int argc, char** argv) {
 
 
 app->scheduler(
-  app->make_scheduler<holoscan::MultiThreadScheduler>( "mts", holoscan::Arg("worker_thread_number", int64_t(worker_num)));
+  app->make_scheduler<holoscan::MultiThreadScheduler>( "mts", holoscan::Arg("worker_thread_number", int64_t(worker_num))));
 
 
 
