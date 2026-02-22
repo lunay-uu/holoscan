@@ -81,8 +81,8 @@ class ReadPPMOp : public holoscan::Operator {
                holoscan::ExecutionContext&) override {
     auto t_start = steady::now();
     sys_begin = std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
-    HOLOSCAN_LOG_INFO( "[START readingPPM] op={} cpu={} tid={} ts(ns)={}",
-      name(), cpu_id(), thread_id(), sys_begin);
+    HOLOSCAN_LOG_INFO( "[START readingPPM] cpu={} tid={} ts(ns)={}",
+       cpu_id(), thread_id(), sys_begin);
     auto [w, h, flat] = util::readPPM(ppm_path_.get());
     out.emit(w, "dimX");
     out.emit(h, "dimY");
@@ -109,6 +109,13 @@ class GrayscaleOp : public holoscan::Operator {
   void compute(holoscan::InputContext& in,
                holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
+    auto t_start = steady::now();
+    auto start_ns =std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[START GrayscaleOp] cpu={} tid={} ts(ns)={}",
+       cpu_id(), thread_id(), start_ns );
+
+    
     int w = in.receive<int>("dimX").value();
     int h = in.receive<int>("dimY").value();
     auto flat = in.receive<IntFlat>("pixels").value();
@@ -124,6 +131,14 @@ class GrayscaleOp : public holoscan::Operator {
       }
     }
     out.emit(gray, "grayImage");
+
+   auto t_end = steady::now();
+   auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[END GrayscaleOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
+
+    
   }
 };
 
@@ -141,6 +156,13 @@ class ResizeOp : public holoscan::Operator {
   void compute(holoscan::InputContext& in,
                holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
+    
+     auto t_start = steady::now();
+    auto start_ns =std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[START ResizeOp] cpu={} tid={} ts(ns)={}",
+       cpu_id(), thread_id(), start_ns );
+    
     auto gray = in.receive<ImageD>("grayImage").value();
     int h = gray.size();
     int w = gray[0].size();
@@ -157,6 +179,14 @@ class ResizeOp : public holoscan::Operator {
       }
     }
     out.emit(outImg, "resizedImage");
+    
+     auto t_end = steady::now();
+   auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[END ResizeOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
+
+    
   }
 };
 
@@ -175,6 +205,12 @@ class BrightnessOp : public holoscan::Operator {
   void compute(holoscan::InputContext& in,
                holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
+     auto t_start = steady::now();
+    auto start_ns =std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[START BrightnessOp] cpu={} tid={} ts(ns)={}",
+       cpu_id(), thread_id(), start_ns );
+    
     auto img = in.receive<ImageD>("resizedImage").value();
     double mn = std::numeric_limits<double>::infinity();
     double mx = -std::numeric_limits<double>::infinity();
@@ -186,10 +222,16 @@ class BrightnessOp : public holoscan::Operator {
     }
     out.emit(mn, "hmin");
     out.emit(mx, "hmax");
+
+         auto t_end = steady::now();
+   auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[END BrightnessOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
   }
 };
 
-// 
+// 5
 class ControlOp : public holoscan::Operator {
  public:
   HOLOSCAN_OPERATOR_FORWARD_ARGS(ControlOp)
@@ -208,6 +250,12 @@ class ControlOp : public holoscan::Operator {
   void compute(holoscan::InputContext& in,
                holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
+   auto t_start = steady::now();
+    auto start_ns =std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[START ControlOp] cpu={} tid={} ts(ns)={}",
+       cpu_id(), thread_id(), start_ns );
+    
     double hmin = in.receive<double>("hmin").value();
     double hmax = in.receive<double>("hmax").value();
     if (state_.empty()) {
@@ -221,6 +269,11 @@ class ControlOp : public holoscan::Operator {
     Control c = (avg < 128.0) ? Control::Enable : Control::Disable;
 
     out.emit(c, "ctrl");
+      auto t_end = steady::now();
+   auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[END ControlOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
   }
 
  private:
@@ -245,6 +298,13 @@ class CorrectionOp : public holoscan::Operator {
   void compute(holoscan::InputContext& in,
                holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
+
+       auto t_start = steady::now();
+    auto start_ns =std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[START CorrectionOp] cpu={} tid={} ts(ns)={}",
+       cpu_id(), thread_id(), start_ns );
+    
     auto img = in.receive<ImageD>("resizedImage").value();
     double hmin = in.receive<double>("hmin").value();
     double hmax = in.receive<double>("hmax").value();
@@ -264,6 +324,11 @@ class CorrectionOp : public holoscan::Operator {
           v = std::max(0.0, (v - hmin) * scale);
     }
     out.emit(outImg, "correctedImage");
+          auto t_end = steady::now();
+   auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[END CorrectionOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
   }
 };
 
@@ -281,6 +346,12 @@ class SobelOp : public holoscan::Operator {
   void compute(holoscan::InputContext& in,
                holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
+       auto t_start = steady::now();
+    auto start_ns =std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[START SobelOp] cpu={} tid={} ts(ns)={}",
+       cpu_id(), thread_id(), start_ns );
+    
     auto img = in.receive<ImageD>("correctedImage").value();
     int h = img.size();
     int w = img[0].size();
@@ -300,6 +371,11 @@ class SobelOp : public holoscan::Operator {
       }
     }
     out.emit(edges, "edges");
+              auto t_end = steady::now();
+   auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[END SobelOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
   }
 };
 
@@ -317,6 +393,11 @@ class AsciiOp : public holoscan::Operator {
   void compute(holoscan::InputContext& in,
                holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
+           auto t_start = steady::now();
+    auto start_ns =std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[START AsciiOp] cpu={} tid={} ts(ns)={}",
+       cpu_id(), thread_id(), start_ns );
     auto edges = in.receive<ImageD>("edges").value();
     int h = edges.size();
     int w = edges[0].size();
@@ -332,6 +413,11 @@ class AsciiOp : public holoscan::Operator {
       oss << "\n";
     }
     out.emit(oss.str(), "ascii");
+     auto t_end = steady::now();
+   auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO(
+      "[END AsciiOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
   }
 };
 
@@ -348,9 +434,16 @@ class DisplayOp : public holoscan::Operator {
   void compute(holoscan::InputContext& in,
                holoscan::OutputContext&,
                holoscan::ExecutionContext&) override {
+
     auto ascii = in.receive<std::string>("ascii").value();
     std::cout << ascii;
-    // After displaying, we exit the app.
+     auto t_end = steady::now();
+     sys_end =std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
+
+    HOLOSCAN_LOG_INFO(
+      "[Display result] cpu={} tid={} ts(ns)={} sys duration(ms)={}",
+       cpu_id(), thread_id(), sys_end, (sys_end-sys_begin)/1000  );
+    // exit the app.
     std::exit(0);
   }
 };
