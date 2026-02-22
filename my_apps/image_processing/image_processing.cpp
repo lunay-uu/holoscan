@@ -8,6 +8,28 @@
 #include <numeric>
 #include <stdexcept>
 
+
+#include <chrono>
+#include <thread>
+#include <string>
+#include <sched.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+static int worker_num=16;
+static int64_t sys_begin = 0;
+static int64_t sys_end   = 0;
+inline int cpu_id() {
+  return sched_getcpu();
+}
+
+inline pid_t thread_id() {
+  return syscall(SYS_gettid);
+}
+
+using steady = std::chrono::steady_clock;
+using ns     = std::chrono::nanoseconds;
+
 using ImageD = std::vector<std::vector<double>>;
 using IntFlat = std::vector<int>;
 
@@ -57,6 +79,10 @@ class ReadPPMOp : public holoscan::Operator {
   void compute(holoscan::InputContext&,
                holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
+    auto t_start = steady::now();
+    sys_begin = std::chrono::duration_cast<ns>(t_start.time_since_epoch()).count();
+    HOLOSCAN_LOG_INFO( "[START readingPPM] op={} cpu={} tid={} ts(ns)={}",
+      name(), cpu_id(), thread_id(), sys_begin);
     auto [w, h, flat] = util::readPPM(ppm_path_.get());
     out.emit(w, "dimX");
     out.emit(h, "dimY");
