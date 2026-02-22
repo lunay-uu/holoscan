@@ -135,7 +135,7 @@ class GrayscaleOp : public holoscan::Operator {
    auto t_end = steady::now();
    auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
     HOLOSCAN_LOG_INFO(
-      "[END GrayscaleOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      "[END GrayscaleOp] cpu={} tid={} ts(ns)={} op duration(us)={}",
       cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
 
     
@@ -183,7 +183,7 @@ class ResizeOp : public holoscan::Operator {
      auto t_end = steady::now();
    auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
     HOLOSCAN_LOG_INFO(
-      "[END ResizeOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      "[END ResizeOp] cpu={} tid={} ts(ns)={} op duration(us)={}",
       cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
 
     
@@ -226,7 +226,7 @@ class BrightnessOp : public holoscan::Operator {
          auto t_end = steady::now();
    auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
     HOLOSCAN_LOG_INFO(
-      "[END BrightnessOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      "[END BrightnessOp] cpu={} tid={} ts(ns)={} op duration(us)={}",
       cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
   }
 };
@@ -272,7 +272,7 @@ class ControlOp : public holoscan::Operator {
       auto t_end = steady::now();
    auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
     HOLOSCAN_LOG_INFO(
-      "[END ControlOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      "[END ControlOp] cpu={} tid={} ts(ns)={} op duration(us)={}",
       cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
   }
 
@@ -327,7 +327,7 @@ class CorrectionOp : public holoscan::Operator {
           auto t_end = steady::now();
    auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
     HOLOSCAN_LOG_INFO(
-      "[END CorrectionOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      "[END CorrectionOp] cpu={} tid={} ts(ns)={} op duration(us)={}",
       cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
   }
 };
@@ -374,7 +374,7 @@ class SobelOp : public holoscan::Operator {
               auto t_end = steady::now();
    auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
     HOLOSCAN_LOG_INFO(
-      "[END SobelOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      "[END SobelOp] cpu={} tid={} ts(ns)={} op duration(us)={}",
       cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
   }
 };
@@ -416,7 +416,7 @@ class AsciiOp : public holoscan::Operator {
      auto t_end = steady::now();
    auto end_ns = std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
     HOLOSCAN_LOG_INFO(
-      "[END AsciiOp] cpu={} tid={} ts(ns)={} op duration(ms)={}",
+      "[END AsciiOp] cpu={} tid={} ts(ns)={} op duration(us)={}",
       cpu_id(), thread_id(), end_ns, (end_ns - start_ns)/1000);
   }
 };
@@ -441,7 +441,7 @@ class DisplayOp : public holoscan::Operator {
      sys_end =std::chrono::duration_cast<ns>(t_end.time_since_epoch()).count();
 
     HOLOSCAN_LOG_INFO(
-      "[Display result] cpu={} tid={} ts(ns)={} sys duration(ms)={}",
+      "[Display result] cpu={} tid={} ts(ns)={} sys duration(us)={}",
        cpu_id(), thread_id(), sys_end, (sys_end-sys_begin)/1000  );
   
   }
