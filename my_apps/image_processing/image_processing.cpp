@@ -443,8 +443,7 @@ class DisplayOp : public holoscan::Operator {
     HOLOSCAN_LOG_INFO(
       "[Display result] cpu={} tid={} ts(ns)={} sys duration(ms)={}",
        cpu_id(), thread_id(), sys_end, (sys_end-sys_begin)/1000  );
-    // exit the app.
-    std::exit(0);
+  
   }
 };
 
@@ -453,7 +452,7 @@ class ImageProcessingApp : public holoscan::Application {
  public:
   void compose() override {
     using namespace holoscan;
-    auto read     = make_operator<ReadPPMOp>("read");
+    auto read     = make_operator<ReadPPMOp>("read",  make_condition<CountCondition>(1));
     auto gray     = make_operator<GrayscaleOp>("gray");
     auto resize   = make_operator<ResizeOp>("resize");
     auto bright   = make_operator<BrightnessOp>("bright");
