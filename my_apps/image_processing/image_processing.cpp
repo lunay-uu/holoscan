@@ -16,7 +16,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-static int worker_num=16;
+static int worker_num=9;
 static int64_t sys_begin = 0;
 static int64_t sys_end   = 0;
 inline int cpu_id() {
@@ -478,6 +478,21 @@ class ImageProcessingApp : public holoscan::Application {
 
 int main(int argc, char** argv) {
   auto app = holoscan::make_application<ImageProcessingApp>();
+  
+//app->scheduler(
+ // app->make_scheduler<holoscan::GreedyScheduler>("greedy"));
+
+
+
+app->scheduler(
+  app->make_scheduler<holoscan::MultiThreadScheduler>( "mts", holoscan::Arg("worker_thread_number", int64_t(worker_num)));
+
+
+
+ // app->scheduler(
+  //  app->make_scheduler<holoscan::EventBasedScheduler>( "ebs",
+    //  holoscan::Arg("worker_thread_number", int64_t(worker_num)) ));
+
   app->run();
   return 0;
 }
