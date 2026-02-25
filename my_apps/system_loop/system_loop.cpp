@@ -11,13 +11,16 @@ size_t tok_op1_op2 = 0;
 size_t tok_op1_op3 = 0;  
 size_t tok_op2_op3 = 0;  
 size_t tok_op3_op4 = 0; 
+size_t tok_op4_op1 = 6;
 }
 void busy_loop(int iters) {
   int x = 0;
   for (int i = 0; i < iters; ++i) {
       x += i; }}
-std::vector<int> feedback;
-bool feedback_initialized = false;
+std::vector<int> feedback={0,0,0,0,0,0};//store delay token
+
+
+
 namespace holoscan::conditions {
 
 class BufferAwareCondition : public Condition {
@@ -78,6 +81,7 @@ class BufferAwareCondition : public Condition {
       case 2: tokens = tok_op1_op3; break;   
       case 3: tokens = tok_op2_op3; break;   
       case 4: tokens = tok_op3_op4; break;
+      case 5: tokens = tok_op4_op1; break;
       default: tokens = 0;
     }
 
@@ -112,6 +116,9 @@ class Op1 : public holoscan::Operator {
                holoscan::ExecutionContext&) override {
     static int counter1 = 0;
     static int counter2 = 0;
+
+ feedback.erase(feedback.begin());//consume one initial delay token
+ tok_op4_op1 -= 1; 
   int cpu = sched_getcpu();
   pid_t tid = syscall(SYS_gettid);
 
@@ -306,14 +313,18 @@ class Op4 : public holoscan::Operator {
       msg = in.receive<std::vector<int>>("in");
     }
 
-    if (buffer.size() >= static_cast<size_t>(b4_.get())) {
-std::cout << "[Op4] consumes:";
-for (int i = 0; i <  b4_.get(); ++i) std::cout << " " << buffer[i];
-std::cout << std::endl;
+    //if (buffer.size() >= static_cast<size_t>(b4_.get())) {
+      std::cout << "[Op4] consumes:";
+      for (int i = 0; i <  b4_.get(); ++i) std::cout << " " << buffer[i];
+      std::cout << std::endl;
       buffer.erase(buffer.begin(), buffer.begin() + b4_.get());
       holoscan::conditions::tok_op3_op4 -= b4_.get();
-   busy_loop(5e7);
+    for (int i = 0; i < 4; ++i) {
+     feedback.push_back(0);
+      tok_op4_op1+=1;
     }
+   busy_loop(5e7);
+    //}
   }
 
  private:
@@ -326,10 +337,16 @@ class TokenSDFApp : public holoscan::Application {
  public:
   void compose() override {
     using namespace holoscan;
-
+    auto cond1 = make_condition<conditions::BufferAwareCondition>(
+      "cond1",
+      Arg("receiver", "in1"),
+      Arg("edge_id", 5),          // 
+      Arg("min_tokens", uint64_t(1))  //
+    );
     auto op1 = make_operator<Op1>(
       "op1",
       make_condition<CountCondition>("count", 96),
+     cond1,
       Arg("a1", 2),   // Op1 → Op2 : a1 = 2
       Arg("a2", 1)    // Op1 → Op3 : a2 = 1
     );
