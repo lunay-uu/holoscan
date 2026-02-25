@@ -28,12 +28,10 @@ inline pid_t thread_id() {
 
 using steady = std::chrono::steady_clock;
 using ns     = std::chrono::nanoseconds;
-void busy_loop(uint64_t iters) {
-    volatile uint64_t x = 0;
-    for (uint64_t i = 0; i < iters; ++i) {
-      x += i;
-    }
-  }
+void busy_loop(int iters) {
+  int x = 0;
+  for (int i = 0; i < iters; ++i) {
+      x += i; }}
 
 class Op0 : public Operator {
  public:
