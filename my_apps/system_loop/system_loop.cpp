@@ -35,10 +35,12 @@ class BufferAwareCondition : public Condition {
   }
 
   void setup(ComponentSpec& spec) override {
-    // spec.param(receiver_,
-    //            "receiver",
-    //            "Receiver",
-    //            "Input channel to monitor for message availability.");
+    spec.param(receiver_,
+           "receiver",
+          "Receiver",
+           "Input channel to monitor for message availability.");
+    //If no receiver here and do the evaluation only based on the tokens, the condition will not br triggered by events. And may lead to unexpected
+    //quitting of the app. 
     spec.param(edge_id_,
                "edge_id",
                "Edge ID",
@@ -97,7 +99,31 @@ class BufferAwareCondition : public Condition {
 };
 
 }  
+class Op0 : public holoscan::Operator {
+ public:
+  HOLOSCAN_OPERATOR_FORWARD_ARGS(Op0)
+  Op0() = default;
 
+  void setup(holoscan::OperatorSpec& spec) override {
+    spec.output<std::vector<int>>("out");
+    spec.param(x_, "x", "Tokens per execution",  "Number of tokens emitted per fire", 1);
+  }
+
+  void compute(holoscan::InputContext&, holoscan::OutputContext& out,
+               holoscan::ExecutionContext&) override {
+    static int counter = 0;
+   std::vector<int> batch;
+ batch.reserve(x_.get());
+for (int i = 0; i < x_.get(); ++i) {
+     batch.push_back(++counter);	
+     }
+out.emit(batch, "out"); 
+
+  }
+
+private:
+  holoscan::Parameter<int> x_;
+};
 
 
 class Op1 : public holoscan::Operator {
@@ -106,19 +132,27 @@ class Op1 : public holoscan::Operator {
   Op1() = default;
 
   void setup(holoscan::OperatorSpec& spec) override {
+    spec.input<std::vector<int>>("in1");
+
     spec.output<std::vector<int>>("out1");
     spec.output<std::vector<int>>("out2");
     spec.param(a1_, "a1", "Tokens out1", "Tokens produced on out1 per fire", 2);
     spec.param(a2_, "a2", "Tokens out2", "Tokens produced on out2 per fire", 1);
+     spec.param(y_, "y", "Tokens per execution",  "Number of tokens to consume per execution", 1);
+    
   }
 
-  void compute(holoscan::InputContext&, holoscan::OutputContext& out,
+  void compute(holoscan::InputContext& in, holoscan::OutputContext& out,
                holoscan::ExecutionContext&) override {
     static int counter1 = 0;
     static int counter2 = 0;
 
  feedback.erase(feedback.begin());//
  holoscan::conditions::tok_op4_op1 -= 1; 
+
+    for (int i = 0; i < y_.get(); ++i) {
+    auto batch = in.receive<std::vector<int>>("in1").value();}
+    
   int cpu = sched_getcpu();
   pid_t tid = syscall(SYS_gettid);
 
@@ -223,7 +257,7 @@ class Op3 : public holoscan::Operator {
   Op3() = default;
 
   void setup(holoscan::OperatorSpec& spec) override {
-    spec.input<std::vector<int>>("in2").queue_size(4);
+    spec.input<std::vector<int>>("in2").queue_size(3);
     spec.input<std::vector<int>>("in3").queue_size(2);
     spec.output<std::vector<int>>("out");
 
@@ -338,23 +372,28 @@ class TokenSDFApp : public holoscan::Application {
  public:
   void compose() override {
     using namespace holoscan;
+           auto op0 = make_operator<Op0>(
+        "op0",
+        make_condition<CountCondition>("count_cond", 96),
+        Arg("x", 1));
     auto cond1 = make_condition<conditions::BufferAwareCondition>(
       "cond1",
-      // Arg("receiver", "in1"),
+      Arg("receiver", "in1"),
       Arg("edge_id", 5),          // 
       Arg("min_tokens", uint64_t(1))  //
     );
     auto op1 = make_operator<Op1>(
       "op1",
-      make_condition<CountCondition>("count", 96),
+      // make_condition<CountCondition>("count", 96),
      cond1,
       Arg("a1", 2),   // Op1 → Op2 : a1 = 2
-      Arg("a2", 1)    // Op1 → Op3 : a2 = 1
+      Arg("a2", 1) ,   // Op1 → Op3 : a2 = 1
+    Arg("y", 1)
     );
 
     auto cond2 = make_condition<conditions::BufferAwareCondition>(
       "cond2",
-      // Arg("receiver", "in"),
+      Arg("receiver", "in"),
       Arg("edge_id", 1),          // tok_op1_op2
       Arg("min_tokens", uint64_t(3))  // b1 = 3
     );
@@ -363,12 +402,12 @@ class TokenSDFApp : public holoscan::Application {
       "op2",
       cond2,
       Arg("b1", 3),   // consume 3
-      Arg("a3", 3)    // produce 2
+      Arg("a3", 3)    // produce 3
     );
 
     auto cond3_in2 = make_condition<conditions::BufferAwareCondition>(
       "cond3_in2",
-      // Arg("receiver", "in2"),
+      Arg("receiver", "in2"),
       Arg("edge_id", 2),                 
       Arg("min_tokens", uint64_t(2))     
     );
@@ -376,7 +415,7 @@ class TokenSDFApp : public holoscan::Application {
     // in3 来自 op2 → op3
     auto cond3_in3 = make_condition<conditions::BufferAwareCondition>(
       "cond3_in3",
-      // Arg("receiver", "in3"),
+      Arg("receiver", "in3"),
       Arg("edge_id", 3),                
       Arg("min_tokens", uint64_t(4))    
     );
@@ -393,9 +432,9 @@ class TokenSDFApp : public holoscan::Application {
    
     auto cond4 = make_condition<conditions::BufferAwareCondition>(
       "cond4",
-      // Arg("receiver", "in"),
+       Arg("receiver", "in"),
       Arg("edge_id", 4),          // tok_op3_op4
-      Arg("min_tokens", uint64_t(2))  // b4 = 4
+      Arg("min_tokens", uint64_t(2))  // b4 = 2
     );
 
     auto op4 = make_operator<Op4>(
@@ -404,7 +443,7 @@ class TokenSDFApp : public holoscan::Application {
       Arg("b4", 2)
     );
 
-
+add_flow(op0, op1, {{"out", "in1"}});
     add_flow(op1, op2, {{"out1", "in"}});
     add_flow(op1, op3, {{"out2", "in2"}});
     add_flow(op2, op3, {{"out",  "in3"}});
