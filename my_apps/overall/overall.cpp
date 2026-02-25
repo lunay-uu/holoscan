@@ -176,9 +176,9 @@ class Op2 : public holoscan::Operator {
       buffer.insert(buffer.end(), msg->begin(), msg->end());
       msg = in.receive<std::vector<int>>("in");
     }
-    std::cout << "[Op2] consumes:";
+ 
     if (buffer.size() >= static_cast<size_t>(b1_.get())) {
-
+     std::cout << "[Op2] consumes:";
       for (int i = 0; i < b1_.get(); ++i) std::cout << " " << buffer[i];
   //    std::cout << std::endl;
       buffer.erase(buffer.begin(), buffer.begin() + b1_.get());
@@ -217,7 +217,7 @@ class Op3 : public holoscan::Operator {
   Op3() = default;
 
   void setup(holoscan::OperatorSpec& spec) override {
-    spec.input<std::vector<int>>("in2").queue_size(4);
+    spec.input<std::vector<int>>("in2").queue_size(3);
     spec.input<std::vector<int>>("in3").queue_size(2);
     spec.output<std::vector<int>>("out");
 
@@ -246,10 +246,10 @@ class Op3 : public holoscan::Operator {
       buf3.insert(buf3.end(), m3->begin(), m3->end());
       m3 = in.receive<std::vector<int>>("in3");
     }
-std::cout << "[Op3] consumes [in1to3]:";
+
     if (buf2.size() >= static_cast<size_t>(b2_.get()) &&
         buf3.size() >= static_cast<size_t>(b3_.get())) {
-
+std::cout << "[Op3] consumes [in1to3]:";
 for (int i = 0; i <  b2_.get(); ++i) std::cout << " " << buf2[i];
 //std::cout << std::endl;
 std::cout << "[Op3] consumes [in2to3]:";
@@ -306,9 +306,9 @@ class Op4 : public holoscan::Operator {
       buffer.insert(buffer.end(), msg->begin(), msg->end());
       msg = in.receive<std::vector<int>>("in");
     }
-std::cout << "[Op4] consumes:";
-    if (buffer.size() >= static_cast<size_t>(b4_.get())) {
 
+    if (buffer.size() >= static_cast<size_t>(b4_.get())) {
+std::cout << "[Op4] consumes:";
 for (int i = 0; i <  b4_.get(); ++i) std::cout << " " << buffer[i];
 std::cout << std::endl;
       buffer.erase(buffer.begin(), buffer.begin() + b4_.get());
