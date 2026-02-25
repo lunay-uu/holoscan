@@ -35,10 +35,10 @@ class BufferAwareCondition : public Condition {
   }
 
   void setup(ComponentSpec& spec) override {
-    spec.param(receiver_,
-               "receiver",
-               "Receiver",
-               "Input channel to monitor for message availability.");
+    // spec.param(receiver_,
+    //            "receiver",
+    //            "Receiver",
+    //            "Input channel to monitor for message availability.");
     spec.param(edge_id_,
                "edge_id",
                "Edge ID",
@@ -117,8 +117,8 @@ class Op1 : public holoscan::Operator {
     static int counter1 = 0;
     static int counter2 = 0;
 
- feedback.erase(feedback.begin());//consume one initial delay token
- tok_op4_op1 -= 1; 
+ feedback.erase(feedback.begin());//
+ holoscan::conditions::tok_op4_op1 -= 1; 
   int cpu = sched_getcpu();
   pid_t tid = syscall(SYS_gettid);
 
@@ -322,7 +322,7 @@ class Op4 : public holoscan::Operator {
       holoscan::conditions::tok_op3_op4 -= b4_.get();
     for (int i = 0; i < 4; ++i) {
      feedback.push_back(0);
-      tok_op4_op1+=1;
+      holoscan::conditions::tok_op4_op1+=1;
     }
    busy_loop(5e7);
     }
@@ -340,7 +340,7 @@ class TokenSDFApp : public holoscan::Application {
     using namespace holoscan;
     auto cond1 = make_condition<conditions::BufferAwareCondition>(
       "cond1",
-      Arg("receiver", "in1"),
+      // Arg("receiver", "in1"),
       Arg("edge_id", 5),          // 
       Arg("min_tokens", uint64_t(1))  //
     );
@@ -354,7 +354,7 @@ class TokenSDFApp : public holoscan::Application {
 
     auto cond2 = make_condition<conditions::BufferAwareCondition>(
       "cond2",
-      Arg("receiver", "in"),
+      // Arg("receiver", "in"),
       Arg("edge_id", 1),          // tok_op1_op2
       Arg("min_tokens", uint64_t(3))  // b1 = 3
     );
@@ -368,7 +368,7 @@ class TokenSDFApp : public holoscan::Application {
 
     auto cond3_in2 = make_condition<conditions::BufferAwareCondition>(
       "cond3_in2",
-      Arg("receiver", "in2"),
+      // Arg("receiver", "in2"),
       Arg("edge_id", 2),                 
       Arg("min_tokens", uint64_t(2))     
     );
@@ -376,7 +376,7 @@ class TokenSDFApp : public holoscan::Application {
     // in3 来自 op2 → op3
     auto cond3_in3 = make_condition<conditions::BufferAwareCondition>(
       "cond3_in3",
-      Arg("receiver", "in3"),
+      // Arg("receiver", "in3"),
       Arg("edge_id", 3),                
       Arg("min_tokens", uint64_t(4))    
     );
@@ -393,7 +393,7 @@ class TokenSDFApp : public holoscan::Application {
    
     auto cond4 = make_condition<conditions::BufferAwareCondition>(
       "cond4",
-      Arg("receiver", "in"),
+      // Arg("receiver", "in"),
       Arg("edge_id", 4),          // tok_op3_op4
       Arg("min_tokens", uint64_t(2))  // b4 = 4
     );
