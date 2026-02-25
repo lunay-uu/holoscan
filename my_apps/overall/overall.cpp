@@ -46,6 +46,11 @@ class BufferAwareCondition : public Condition {
                "Minimum total tokens required",
                "Condition READY when queue + buffer ≥ min_tokens",
                static_cast<uint64_t>(1));
+         spec.param(tokens_per_msg,
+               "tokens_per_msg",
+               "tokens_per_msg",
+               "tokens_per_msg",
+               static_cast<uint64_t>(1));
   }
 
   void check(int64_t, SchedulingStatusType* type,
@@ -73,21 +78,27 @@ class BufferAwareCondition : public Condition {
   bool check_ready() const {
     size_t tokens = 0;
 
-    switch (edge_id_.get()) {
+       switch (edge_id_.get()) {
 
       case 1: tokens = tok_op1_op2; break;
-      case 2: tokens = tok_op1_op3; break;   
-      case 3: tokens = tok_op2_op3; break;   
+      case 2: tokens = tok_op1_op3; break;
+      case 3: tokens = tok_op2_op3; break;
       case 4: tokens = tok_op3_op4; break;
       default: tokens = 0;
     }
+     size_t queue_tokens = 0;
+    auto recv = receiver_.get();
+    if (!recv) return false;
+    queue_tokens = (recv->back_size() + recv->size()) * tokens_per_msg.get();
+// std::cout << queue_tokens;
 
-    return tokens >= min_tokens_.get();
+
+    return (tokens+ queue_tokens) >= min_tokens_.get();
   }
-
   Parameter<std::shared_ptr<holoscan::Receiver>> receiver_;
   Parameter<int> edge_id_;
   Parameter<uint64_t> min_tokens_;
+   Parameter<uint64_t>tokens_per_msg;
 
   mutable SchedulingStatusType current_state_ = SchedulingStatusType::kWait;
   mutable int64_t last_state_change_ = 0;
@@ -132,8 +143,8 @@ class Op1 : public holoscan::Operator {
     out.emit(b1, "out1");
     out.emit(b2, "out2");
 
-    holoscan::conditions::tok_op1_op2 += a1_.get();
-    holoscan::conditions::tok_op1_op3 += a2_.get();
+    // holoscan::conditions::tok_op1_op2 += a1_.get();
+    // holoscan::conditions::tok_op1_op3 += a2_.get();
 //std::cout << holoscan::conditions::tok_op1_op3 << std::endl;
     std::cout << "[Op1] produces [out1to2]:";
     for (auto v : b1) std::cout << " " << v;
@@ -174,6 +185,7 @@ class Op2 : public holoscan::Operator {
     auto msg = in.receive<std::vector<int>>("in");
     while (msg) {
       buffer.insert(buffer.end(), msg->begin(), msg->end());
+        holoscan::conditions::tok_op1_op2 += msg->size();
       msg = in.receive<std::vector<int>>("in");
     }
  
@@ -193,7 +205,7 @@ class Op2 : public holoscan::Operator {
 
 
       out.emit(produced, "out");    
-  holoscan::conditions::tok_op2_op3 += produced.size();
+  // holoscan::conditions::tok_op2_op3 += produced.size();
 //std::cout << holoscan::conditions::tok_op2_op3 << std::endl;
           std::cout << "[Op2] produces :";
     for (auto v : produced) std::cout << " " << v;
@@ -238,12 +250,14 @@ class Op3 : public holoscan::Operator {
  auto m2 = in.receive<std::vector<int>>("in2");
     while (m2) {
       buf2.insert(buf2.end(), m2->begin(), m2->end());
+        holoscan::conditions::tok_op1_op3 += m2->size();
       m2 = in.receive<std::vector<int>>("in2");
     }
 
     auto m3 = in.receive<std::vector<int>>("in3");
     while (m3) {
       buf3.insert(buf3.end(), m3->begin(), m3->end());
+        holoscan::conditions::tok_op2_op3 += m3->size();
       m3 = in.receive<std::vector<int>>("in3");
     }
 
@@ -267,7 +281,7 @@ for (int i = 0; i <  b3_.get(); ++i) std::cout << " " << buf3[i];
         produced.push_back(++counter);
 
       out.emit(produced, "out");
-      holoscan::conditions::tok_op3_op4 += produced.size();
+      // holoscan::conditions::tok_op3_op4 += produced.size();
 
               std::cout << "[Op3] produces :";
     for (auto v : produced) std::cout << " " << v;
@@ -304,6 +318,7 @@ class Op4 : public holoscan::Operator {
     auto msg = in.receive<std::vector<int>>("in");
     while (msg) {
       buffer.insert(buffer.end(), msg->begin(), msg->end());
+        holoscan::conditions::tok_op3_op4 += msg->size();
       msg = in.receive<std::vector<int>>("in");
     }
 
@@ -339,7 +354,8 @@ class TokenSDFApp : public holoscan::Application {
       "cond2",
       Arg("receiver", "in"),
       Arg("edge_id", 1),          // tok_op1_op2
-      Arg("min_tokens", uint64_t(3))  // b1 = 3
+      Arg("min_tokens", uint64_t(3)),  // b1 = 3
+      Arg("tokens_per_msg", uint64_t(2))//each msg from op1
     );
 
     auto op2 = make_operator<Op2>(
@@ -353,7 +369,8 @@ class TokenSDFApp : public holoscan::Application {
       "cond3_in2",
       Arg("receiver", "in2"),
       Arg("edge_id", 2),                 
-      Arg("min_tokens", uint64_t(2))     
+      Arg("min_tokens", uint64_t(2)) ,
+      Arg("tokens_per_msg", uint64_t(1))
     );
 
     // in3 来自 op2 → op3
@@ -361,7 +378,8 @@ class TokenSDFApp : public holoscan::Application {
       "cond3_in3",
       Arg("receiver", "in3"),
       Arg("edge_id", 3),                
-      Arg("min_tokens", uint64_t(4))    
+      Arg("min_tokens", uint64_t(4)),
+      Arg("tokens_per_msg", uint64_t(3))
     );
 
     auto op3 = make_operator<Op3>(
@@ -378,7 +396,8 @@ class TokenSDFApp : public holoscan::Application {
       "cond4",
       Arg("receiver", "in"),
       Arg("edge_id", 4),          // tok_op3_op4
-      Arg("min_tokens", uint64_t(2))  // b4 = 4
+      Arg("min_tokens", uint64_t(2)),  // b4 = 4
+      Arg("tokens_per_msg", uint64_t(1))
     );
 
     auto op4 = make_operator<Op4>(
