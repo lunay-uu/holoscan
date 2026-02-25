@@ -392,17 +392,6 @@ class TokenSDFApp : public holoscan::Application {
     add_flow(op1, op3, {{"out2", "in2"}});
     add_flow(op2, op3, {{"out",  "in3"}});
     add_flow(op3, op4, {{"out",  "in"}});
-  //  this->scheduler( this->make_scheduler<holoscan::EventBasedScheduler>( "event-scheduler", holoscan::Arg("worker_thread_number", int64_t(4)) )); 
-
-
-//app->scheduler(
- // app->make_scheduler<holoscan::GreedyScheduler>("greedy")
-//);
-
-
-
-//   app->scheduler(app->make_scheduler<holoscan::MultiThreadScheduler>("mts", holoscan::Arg("worker_thread_number", int64_t(4))  ));
-
 
  }
 };
