@@ -141,10 +141,10 @@ class Op1 : public holoscan::Operator {
     holoscan::conditions::tok_op1_op2 += a1_.get();
     holoscan::conditions::tok_op1_op3 += a2_.get();
 //std::cout << holoscan::conditions::tok_op1_op3 << std::endl;
-    std::cout << "[Op1] produces [out1]:";
+    std::cout << "[Op1] produces [out1to2]:";
     for (auto v : b1) std::cout << " " << v;
 //     std::cout <<  std::endl;
-      std::cout << "[Op1] produces [out2]:";
+      std::cout << "[Op1] produces [out1to3]:";
     for (auto v : b2) std::cout << " " << v;
      std::cout <<  std::endl;
   }
@@ -252,13 +252,13 @@ class Op3 : public holoscan::Operator {
       buf3.insert(buf3.end(), m3->begin(), m3->end());
       m3 = in.receive<std::vector<int>>("in3");
     }
-  std::cout << "[Op3] consumes [in1]:";
+  std::cout << "[Op3] consumes [in1to3]:";
     if (buf2.size() >= static_cast<size_t>(b2_.get()) &&
         buf3.size() >= static_cast<size_t>(b3_.get())) {
 
 for (int i = 0; i <  b2_.get(); ++i) std::cout << " " << buf2[i];
 //std::cout << std::endl;
-std::cout << "[Op3] consumes [in2]:";
+std::cout << "[Op3] consumes [in2to3]:";
 for (int i = 0; i <  b3_.get(); ++i) std::cout << " " << buf3[i];
 //std::cout << std::endl;
       buf2.erase(buf2.begin(), buf2.begin() + b2_.get());
