@@ -12,13 +12,12 @@ size_t tok_op1_op3 = 0;
 size_t tok_op2_op3 = 0;  
 size_t tok_op3_op4 = 0; 
 }
-void busy_loop(uint64_t iters) {
-    volatile uint64_t x = 0;
-    for (uint64_t i = 0; i < iters; ++i) {
-      x += i;
-    }
-  }
-
+void busy_loop(int iters) {
+  int x = 0;
+  for (int i = 0; i < iters; ++i) {
+      x += i; }}
+std::vector<int> feedback;
+bool feedback_initialized = false;
 namespace holoscan::conditions {
 
 class BufferAwareCondition : public Condition {
