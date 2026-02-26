@@ -17,3 +17,5 @@ other examples lack all three aspects. (tokenaware condition but lacks atomic an
 cmake -S .. -B . -D Holoscan_ROOT="/opt/nvidia/holoscan"
 ## Build
 cmake --build . -j
+## Run
+./appname
