@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 #include "holoscan/holoscan.hpp"
-
+#include <mutex>
 using namespace std;
 
 //global token count
@@ -17,8 +17,8 @@ void busy_loop(int iters) {
   int x = 0;
   for (int i = 0; i < iters; ++i) {
       x += i; }}
-//std::vector<int> feedback={0,0,0,0,0,0};//store delay token
-
+std::vector<int> feedback={0,0,0,0,0,0};//store delay token
+std::mutex feedback_mtx; 
 
 
 namespace holoscan::conditions {
@@ -39,7 +39,7 @@ class BufferAwareCondition : public Condition {
            "receiver",
           "Receiver",
            "Input channel to monitor for message availability.");
-    //If no receiver here and do the evaluation only based on the tokens, the condition will not br triggered by events. And may lead to unexpected
+    //If no receiver here and do the evaluation only based on the tokens, the condition will not be triggered by events. And may lead to unexpected
     //quitting of the app. 
     spec.param(edge_id_,
                "edge_id",
@@ -81,7 +81,6 @@ class BufferAwareCondition : public Condition {
  private:
   bool check_ready() const {
     size_t tokens = 0;
-
     switch (edge_id_.get()) {
 
   case 1: tokens = tok_op1_op2.load(std::memory_order_relaxed); break;
@@ -90,7 +89,7 @@ class BufferAwareCondition : public Condition {
   case 4: tokens = tok_op3_op4.load(std::memory_order_relaxed); break;
   case 5: tokens = tok_op4_op1.load(std::memory_order_relaxed); break;
     }
-  size_t queue_tokens = 0;
+   size_t queue_tokens = 0;
     auto recv = receiver_.get();
     if (!recv) return false;
     queue_tokens = (recv->back_size() + recv->size()) * tokens_per_msg.get();
@@ -135,7 +134,7 @@ class Op1 : public holoscan::Operator {
 
   void setup(holoscan::OperatorSpec& spec) override {
   
-  spec.input<int>("in");
+    spec.input<int>("in");
     spec.output<std::vector<int>>("out1");
     spec.output<std::vector<int>>("out2");
     spec.param(a1_, "a1", "Tokens out1", "Tokens produced on out1 per fire", 2);
@@ -156,9 +155,10 @@ class Op1 : public holoscan::Operator {
 //holoscan::conditions::tok_op4_op1 += 1;
     msg = in.receive<int>("in");
   }
+    feedback_mtx.lock();
   //   feedback.erase(feedback.begin());//
-holoscan::conditions::tok_op4_op1.fetch_sub(1, std::memory_order_relaxed);
-    
+holoscan::conditions::tok_op4_op1.fetch_sub(1);
+    feedback_mtx.unlock();
 
     std::vector<int> b1;
     b1.reserve(a1_.get());
@@ -175,10 +175,9 @@ holoscan::conditions::tok_op4_op1.fetch_sub(1, std::memory_order_relaxed);
     out.emit(b2, "out2");
 
 
-//std::cout << holoscan::conditions::tok_op1_op3 << std::endl;
+
     std::cout << "[Op1] produces [out1to2]:";
     for (auto v : b1) std::cout << " " << v;
-//     std::cout <<  std::endl;
       std::cout << "[Op1] produces [out1to3]:";
     for (auto v : b2) std::cout << " " << v;
      std::cout <<  std::endl;
@@ -211,7 +210,7 @@ class Op2 : public holoscan::Operator {
     auto msg = in.receive<std::vector<int>>("in");
     while (msg) {
       buffer.insert(buffer.end(), msg->begin(), msg->end());
-     holoscan::conditions:: tok_op1_op2.fetch_add(msg->size(), std::memory_order_relaxed);
+     holoscan::conditions:: tok_op1_op2.fetch_add(msg->size());
       msg = in.receive<std::vector<int>>("in");
     }
 
@@ -219,25 +218,20 @@ class Op2 : public holoscan::Operator {
        std::cout << "[Op2] consumes:";
       for (int i = 0; i < b1_.get(); ++i) std::cout << " " << buffer[i];
       buffer.erase(buffer.begin(), buffer.begin() + b1_.get());
-holoscan::conditions:: tok_op1_op2.fetch_sub(b1_.get(), std::memory_order_relaxed);
-
+  
+  
       std::vector<int> produced;
       produced.reserve(a3_.get());
       for (int i = 0; i < a3_.get(); ++i)
         produced.push_back(++counter);
-
-     
-
-
       out.emit(produced, "out");    
 
-//std::cout << holoscan::conditions::tok_op2_op3 << std::endl;
           std::cout << "[Op2] produces :";
     for (auto v : produced) std::cout << " " << v;
      std::cout <<  std::endl;
-
- busy_loop(5e7);
-
+    busy_loop(5e7);
+   
+    holoscan::conditions:: tok_op1_op2.fetch_sub(b1_.get());
 
     }
   }
@@ -267,22 +261,18 @@ class Op3 : public holoscan::Operator {
                holoscan::ExecutionContext&) override {
     static std::vector<int> buf2, buf3;
     static int counter = 0;
-  int cpu = sched_getcpu();
-  pid_t tid = syscall(SYS_gettid);
 
-//  std::cout << "[Op3] running on CPU " << cpu
-//            << " (tid=" << tid << ")" << std::endl;   
  auto m2 = in.receive<std::vector<int>>("in2");
     while (m2) {
       buf2.insert(buf2.end(), m2->begin(), m2->end());
-      holoscan::conditions::tok_op1_op3.fetch_add(m2->size(), std::memory_order_relaxed);
+      holoscan::conditions::tok_op1_op3.fetch_add(m2->size());
       m2 = in.receive<std::vector<int>>("in2");
     }
 
     auto m3 = in.receive<std::vector<int>>("in3");
     while (m3) {
       buf3.insert(buf3.end(), m3->begin(), m3->end());
-        holoscan::conditions::tok_op2_op3.fetch_add(m3->size(), std::memory_order_relaxed);
+        holoscan::conditions::tok_op2_op3.fetch_add(m3->size());
       m3 = in.receive<std::vector<int>>("in3");
     }
   std::cout << "[Op3] consumes [in1to3]:";
@@ -298,19 +288,20 @@ for (int i = 0; i <  b3_.get(); ++i) std::cout << " " << buf3[i];
       buf3.erase(buf3.begin(), buf3.begin() + b3_.get());
 
 
-  holoscan::conditions::tok_op1_op3.fetch_sub( b2_.get(), std::memory_order_relaxed);
-      holoscan::conditions::tok_op2_op3.fetch_sub( b3_.get(), std::memory_order_relaxed);
+   
       std::vector<int> produced;
       produced.reserve(a4_.get());
       for (int i = 0; i < a4_.get(); ++i)
         produced.push_back(++counter);
 
       out.emit(produced, "out");
-
       std::cout << "[Op3] produces :";
     for (auto v : produced) std::cout << " " << v;
      std::cout <<  std::endl;
- busy_loop(5e7);
+        holoscan::conditions::tok_op1_op3.fetch_sub( b2_.get());
+      holoscan::conditions::tok_op2_op3.fetch_sub( b3_.get());
+      
+     busy_loop(5e7);
     }
   }
 
@@ -333,31 +324,29 @@ class Op4 : public holoscan::Operator {
   void compute(holoscan::InputContext& in, holoscan::OutputContext&,
                holoscan::ExecutionContext&) override {
     static std::vector<int> buffer;
-  int cpu = sched_getcpu();
-  pid_t tid = syscall(SYS_gettid);
-
- // std::cout << "[Op4] running on CPU " << cpu
-   //         << " (tid=" << tid << ")" << std::endl;
 
     auto msg = in.receive<std::vector<int>>("in");
     while (msg) {
       buffer.insert(buffer.end(), msg->begin(), msg->end());
-      holoscan::conditions::tok_op3_op4.fetch_add(msg->size(), std::memory_order_relaxed);
+      holoscan::conditions::tok_op3_op4.fetch_add(msg->size());
       msg = in.receive<std::vector<int>>("in");
     }
 
-
+    
     if (buffer.size() >= static_cast<size_t>(b4_.get())) {
       std::cout << "[Op4] consumes:";
       for (int i = 0; i <  b4_.get(); ++i) std::cout << " " << buffer[i];
       std::cout << std::endl;
       buffer.erase(buffer.begin(), buffer.begin() + b4_.get());
-      holoscan::conditions::tok_op3_op4 -= b4_.get();
-    for (int i = 0; i < 4; ++i) {
-//     feedback.push_back(0);
-   holoscan::conditions::tok_op4_op1.fetch_add(1, std::memory_order_relaxed);
+      holoscan::conditions::tok_op3_op4.fetch_sub(b4_.get());
+      feedback_mtx.lock();
+      for (int i = 0; i < 4; ++i) {
+   feedback.push_back(0);
+   holoscan::conditions::tok_op4_op1.fetch_add(1);
     }
-   busy_loop(5e7);
+   feedback_mtx.unlock();
+      
+       busy_loop(5e7);
     }
   }
 
